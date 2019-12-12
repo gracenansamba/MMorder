@@ -1,9 +1,30 @@
-// this is recursive1.cpp + printing info the subproblems, to illustrate the recursion:
-
+// this is recursive.cpp + printing info the subproblems, to illustrate the recursion:
+#include <stdio.h>
 #include <iostream>
+#include<omp.h>
+#include <time.h>
 using namespace std;
 
 #define PRINT_INFO // print out the trace of operations as you recurse.
+//#pragma omp parallel
+//{ 
+//the traditional ijk
+template <typename T>
+void matmul_ijk(T *C1, T *A, T *B, int M, int K, int N, int RS) // row major, shape C:MxN, A:MxK, B:KxN let M=K=N :square
+{
+#ifdef PRINT_INFO
+	 cout << "matmul_ijk(" << M << ", " << K << "," << N << ")" << endl;
+#endif
+   for(int i = 0; i < M; ++i)
+ 	for(int j = 0; j < N; ++j)
+	 {
+	   T tmp = (T)0;
+	    for(int k = 0; k < K; ++k)
+	    	tmp += A[i*RS+k] * B[k*RS+j];    // A(i,k)*B(k,j)
+		     C1[i*RS+j] += tmp;
+	 }
+}
+//}
 
 template <typename T, int N>
 void simple_matmul(T *C, T *A, T *B, int RS) // row major, fixed NxN, need not be a power of 2, but square 
@@ -112,7 +133,10 @@ void recursive_matmul_PO2(T *C, T *A, T *B, int M, int RS, int level) // SQUARE,
 template <typename T>
 void matmul_PO2(T *C, T *A, T *B, int M, int RS) // SQUARE, Power of 2 only; row major; C zero or preinitialized.
 {
+  //double start1 = omp_get_wtime();
   recursive_matmul_PO2(C, A, B, M, RS, 0);
+ // double end1 = omp_get_wtime();
+ // printf("time for for recursive: %lf\n", (end1-start1)); //time to run the recursive function
 }
 
 
@@ -129,10 +153,11 @@ void print_mat(T *A, int M, int N, int RS) // row major, MxN in shape
 }
 
 
-#define MMAX 64
+#define MMAX 16 
 int main(void)
 {
    double *C = new double[MMAX*MMAX];
+   double *C1 = new double[MMAX*MMAX];
    double *A = new double[MMAX*MMAX];
    double *B = new double[MMAX*MMAX];
 
@@ -141,22 +166,70 @@ int main(void)
      for(int j = 0; j < MMAX; ++j)
      {
        A[i*MMAX+j] = B[i*MMAX+j] = C[i*MMAX+j] = 0.0; // C is all zeros
-       if(i==j)
+        A[i*MMAX+j] = B[i*MMAX+j] = C1[i*MMAX+j] = 0.0; // C1 is all zeros
+       for (int i = 0; i<MMAX*MMAX; i++)
+	  for (int j= 0; j<MMAX*MMAX; j++){
+		 A[i]=rand ()%10;
+	           B[i]=rand ()%10;}
+      /* if (i==j)
+	{
+	  A[i*MMAX+j]=1;
+	  B[i*MMAX+j]=2;
+	}
+       else if(i!=j)
        {
-	 A[i*MMAX+j] = i+1;
-         B[i*MMAX+j] = 100.0;
-       }
+	 A[i*MMAX+j] = i;
+         B[i*MMAX+j] = 1.0;
+       }*/
      }
 
    // A and B contain random stuff right now...
+   	    double start1 = omp_get_wtime();
+   	  #pragma omp parallel
+   	  {
+		    //double start1 = omp_get_wtime();
    matmul_PO2(C, A, B, MMAX /* SHAPE : MMAXxMMAX matrices */, MMAX /* ROW STRIDE */ );
+   		  //double end1 = omp_get_wtime();
+		 // printf("time for for Recursive: %lf\n", (end1-start1)); //time to run the recursive function
+   	}
 
+
+	    cout << "Matrix A"<<endl;
+	       print_mat(A, MMAX, MMAX, MMAX);  
+	       cout << "Matrix B"<<endl;
+	       cout << "" <<endl;
+		 print_mat(B, MMAX, MMAX, MMAX);
+
+	  double end1 = omp_get_wtime();
+	  printf("*****time for for Recursive: %lf\n", (end1-start1)); //time to run the recursive function
+   //cout << "Matrix A"<<endl;
+   //print_mat(A, MMAX, MMAX, MMAX);   cout << "Matrix B"<<endl;
+   //cout << "" <<endl;
+  // print_mat(B, MMAX, MMAX, MMAX);  
+  cout << "Matrix C for recursive" <<endl;
    print_mat(C, MMAX, MMAX, MMAX);
-
+//check the ijk result
+	cout << "" <<endl;
+	  start1 = omp_get_wtime();
+	 #pragma omp parallel
+	{
+		// double start1 = omp_get_wtime();
+    matmul_ijk(C1, A, B, MMAX, MMAX, MMAX, MMAX);
+    		//double end1 = omp_get_wtime();
+		// printf("time for for ijk: %lf\n", (end1-start1)); //time to run the ijk function
+    	}
+	 end1 = omp_get_wtime(); 
+	printf("****time for for ijk: %lf\n", (end1-start1)); //time to run the ijk function
+    cout<< "MAtrix C1 for ijk"<<endl;
+	print_mat(C1, MMAX, MMAX, MMAX); 		
    delete[] C;
+   delete[] C1;
    delete[] A;
    delete[] B;
-
+/*	#pragma omp parallel
+   {
+	   cout << "hello world"<<endl;
+   }*/
 
    return 0;
 }
