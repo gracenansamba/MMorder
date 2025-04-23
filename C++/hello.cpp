@@ -16,7 +16,17 @@ int main(){
 	std::cout<<"enter another number"<<std::endl;
 	std::cin>>num2;
 	std::cout<<"what operation do you want? +,-,/,*"<<std::endl;
+	std::cin>>operand;
 
+	if(operand == '+')
+		std::cout<<"Ans = "<<num + num2<<std::endl;
+	else if(operand == '-')
+		std::cout<<"Ans = "<<num - num2<<std::endl;
+	else if(operand == '*')
+		std::cout<<"Ans = "<<num * num2<<std::endl;
+	else if(operand == '/')
+		std::cout<<"Ans = "<<num / num2<<std::endl;
+	else std::cout<<"wrong input"<<std::endl;
 	
-
+return 0;
 }
